@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node_modules/.bin/tsc.cmd --noEmit)",
+      "Bash(node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(npx tsx:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(node node_modules/next/dist/bin/next build)",
+      "Bash(node node_modules/next/dist/bin/next dev)",
+      "Bash(timeout 20 bash -c 'tail -f \"C:\\\\Users\\\\DAVIDE~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-DavidePilo-OneDrive---GastroSuisse-Schools---Formation-Documents-profit-leak-detection\\\\d4f74894-d39a-4bd1-98e8-a8146fedec20\\\\tasks\\\\bfmtgaybo.output\"')",
+      "Bash(curl -s \"http://localhost:3002/\")",
+      "Bash(curl -s \"http://localhost:3002/dashboard\" -L)",
+      "Bash(curl -s \"http://localhost:3002/register\")",
+      "Bash(curl -s \"http://localhost:3002/dashboard\")",
+      "Bash(curl -sv \"http://localhost:3002/import\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(find ./app/api -type f -name \"*.ts\" -exec grep -l \"TODO\\\\|FIXME\\\\|not implemented\\\\|WIP\" {} \\\\;)",
+      "Bash(head -100 supabase/migrations/*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(node scripts/gen-csv.mjs)"
+    ]
+  }
+}
