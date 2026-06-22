@@ -118,7 +118,8 @@ export default function ComptabiliteClient({ plan }: { plan: string }) {
     const vendorKey = normalizeVendorKey(tx.vendor);
     setSavingVendor(vendorKey);
 
-    // Update local state immediately
+    const newVat = CATEGORIES[newCategory].vat;
+
     setTransactions((prev) => {
       if (!prev || prev === "loading") return prev;
       return prev.map((t) =>
@@ -128,27 +129,51 @@ export default function ComptabiliteClient({ plan }: { plan: string }) {
               category: newCategory,
               isManual: true,
               confidence: "high" as const,
-              vatRate: CATEGORIES[newCategory].vat,
-              vatAmount: CATEGORIES[newCategory].vat
-                ? Math.round((Math.abs(t.amount) - Math.abs(t.amount) / (1 + CATEGORIES[newCategory].vat!)) * 100) / 100
+              vatRate: newVat,
+              vatOverride: undefined,
+              vatAmount: newVat
+                ? Math.round((Math.abs(t.amount) - Math.abs(t.amount) / (1 + newVat)) * 100) / 100
                 : 0,
-              amountHT: CATEGORIES[newCategory].vat
-                ? Math.round((Math.abs(t.amount) / (1 + CATEGORIES[newCategory].vat!)) * 100) / 100
+              amountHT: newVat
+                ? Math.round((Math.abs(t.amount) / (1 + newVat)) * 100) / 100
                 : Math.abs(t.amount),
             }
           : t
       );
     });
 
-    // Save to server
-    await fetch("/api/categorizer/learn", {
+    const res = await fetch("/api/categorizer/learn", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vendor_key: vendorKey, category: newCategory }),
-    }).catch(() => {});
+    }).catch(() => null);
 
-    setLearnedMappings((prev) => ({ ...prev, [vendorKey]: newCategory }));
+    if (res?.ok) {
+      setLearnedMappings((prev) => ({ ...prev, [vendorKey]: newCategory }));
+    }
     setSavingVendor(null);
+  }
+
+  function handleVatOverride(tx: CategorizedTransaction, newVatStr: string) {
+    const newVat = newVatStr === "" ? null : parseFloat(newVatStr) / 100;
+    const absAmount = Math.abs(tx.amount);
+    setTransactions((prev) => {
+      if (!prev || prev === "loading") return prev;
+      return prev.map((t) =>
+        t.id === tx.id
+          ? {
+              ...t,
+              vatOverride: newVat,
+              vatAmount: newVat && newVat > 0
+                ? Math.round((absAmount - absAmount / (1 + newVat)) * 100) / 100
+                : 0,
+              amountHT: newVat && newVat > 0
+                ? Math.round((absAmount / (1 + newVat)) * 100) / 100
+                : absAmount,
+            }
+          : t
+      );
+    });
   }
 
   function handleExport() {
@@ -244,11 +269,10 @@ export default function ComptabiliteClient({ plan }: { plan: string }) {
             </button>
           ) : (
             <a
-              href="/#pricing"
-              className="flex items-center gap-2 bg-gray-200 text-gray-500 px-5 py-2.5 rounded-xl text-sm font-semibold cursor-not-allowed"
-              title="Disponible avec un abonnement payant"
+              href="/checkout?plan=growth"
+              className="flex items-center gap-2 bg-[#e85d04] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#c94d00] transition-colors"
             >
-              🔒 Exporter — Plan payant requis
+              🔒 Débloquer l&apos;export
             </a>
           )}
         </div>
@@ -259,13 +283,13 @@ export default function ComptabiliteClient({ plan }: { plan: string }) {
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Total dépenses TTC</p>
           <p className="text-2xl font-bold text-[#1e3a5f]">
-            {totalTTC.toLocaleString("fr-CH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} CHF
+            {totalTTC.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CHF
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">TVA récupérable estimée</p>
           <p className="text-2xl font-bold text-green-600">
-            {totalVAT.toLocaleString("fr-CH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} CHF
+            {totalVAT.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CHF
           </p>
           <p className="text-xs text-gray-400 mt-1">À confirmer par votre fiduciaire</p>
         </div>
@@ -351,8 +375,8 @@ export default function ComptabiliteClient({ plan }: { plan: string }) {
                 <th className="text-left px-4 py-3">Fournisseur</th>
                 <th className="text-right px-4 py-3">Montant TTC</th>
                 <th className="text-left px-4 py-3 w-56">Catégorie</th>
-                <th className="text-right px-4 py-3">TVA est.</th>
-                <th className="text-right px-4 py-3">Montant HT est.</th>
+                <th className="text-right px-4 py-3">TVA %</th>
+                <th className="text-right px-4 py-3">Montant HT</th>
                 <th className="text-center px-4 py-3">Statut</th>
               </tr>
             </thead>
@@ -393,10 +417,28 @@ export default function ComptabiliteClient({ plan }: { plan: string }) {
                         ))}
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">
-                      {tx.vatRate !== null
-                        ? `${(tx.vatRate * 100).toFixed(1)}%`
-                        : <span className="text-orange-500">?</span>}
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <select
+                        value={
+                          tx.vatOverride !== undefined && tx.vatOverride !== null
+                            ? String(tx.vatOverride * 100)
+                            : tx.vatRate !== null
+                              ? String(tx.vatRate * 100)
+                              : ""
+                        }
+                        onChange={(e) => handleVatOverride(tx, e.target.value)}
+                        className={`px-2 py-1 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] ${
+                          tx.vatOverride !== undefined && tx.vatOverride !== null
+                            ? "border-purple-200 bg-purple-50 text-purple-800"
+                            : "border-gray-200 bg-gray-50 text-gray-600"
+                        }`}
+                      >
+                        <option value="">? inconnu</option>
+                        <option value="0">0% exonéré</option>
+                        <option value="2.6">2.6% réduit</option>
+                        <option value="3.8">3.8% hôtel</option>
+                        <option value="8.1">8.1% standard</option>
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-gray-600 whitespace-nowrap">
                       {tx.amountHT !== null
