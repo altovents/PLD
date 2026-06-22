@@ -11,7 +11,11 @@ import { isStructuralCost } from "./structural-costs";
  *
  * Roadmap: "Récurrence détectée + aucune activité associée"
  */
-export function detectUnusedSubscriptions(transactions: DbTransaction[], context?: CompanyContext): LeakCandidate[] {
+export function detectUnusedSubscriptions(
+  transactions: DbTransaction[],
+  context?: CompanyContext,
+  excludedVendors?: Set<string>   // vendors already covered by doublon or ghost alerts
+): LeakCandidate[] {
   const debits = transactions.filter((tx) => tx.amount < 0);
   const trustedVendors = (context?.trusted_vendors ?? []).map((v) => v.toLowerCase());
 
@@ -43,24 +47,33 @@ export function detectUnusedSubscriptions(transactions: DbTransaction[], context
     // Skip trusted vendors
     if (trustedVendors.includes(vendor.toLowerCase())) continue;
 
+    // Skip vendors already covered by overlapping_services or ghost_reactivation
+    if (excludedVendors?.has(vendor)) continue;
+
     const months = Object.keys(monthMap).sort();
     if (months.length < 2) continue; // not recurring
 
-    const totalSpent = Object.values(monthMap).reduce((s, v) => s + v, 0);
+    // Skip variable-billing vendors (e.g. OpenAI, AWS usage — high month-to-month variance)
+    const monthlyTotals = months.map((m) => monthMap[m]);
+    const mean = monthlyTotals.reduce((s, v) => s + v, 0) / monthlyTotals.length;
+    if (mean > 0) {
+      const maxDeviation = Math.max(...monthlyTotals.map((v) => Math.abs(v - mean)));
+      if (maxDeviation / mean > 0.25) continue;
+    }
+
+    const totalSpent = monthlyTotals.reduce((s, v) => s + v, 0);
     const avgMonthly = totalSpent / months.length;
 
     // Filter out low-value noise (< 10 CHF/month)
     if (avgMonthly < 10) continue;
 
-    const priority =
-      avgMonthly > 100 ? "high" : avgMonthly > 30 ? "medium" : "low";
+    const priority: "high" | "medium" | "low" =
+      avgMonthly > 200 ? "high" : avgMonthly > 60 ? "medium" : "low";
 
     // Only flag vendors that look like software/services, not infrastructure
     const looksLikeSaaS = /\b(microsoft|adobe|slack|zoom|dropbox|salesforce|hubspot|google|aws|github|notion|figma|canva|shopify|stripe|netlify|vercel|openai|anthropic|datadog|mailchimp|sendgrid|spotify|netflix|linkedin|atlassian|jira)\b/i.test(vendor);
     const looksLikeTelecom = /swisscom|sunrise|salt\s+mobile|quickline|upc|init7/i.test(vendor);
 
-    // For telecom: only flag if there's a cheaper alternative worth investigating
-    // For unknown vendors: flag as "à vérifier"
     const actionVerb = looksLikeSaaS
       ? "Vérifier si cet outil est encore utilisé par l'équipe."
       : looksLikeTelecom
@@ -74,9 +87,16 @@ export function detectUnusedSubscriptions(transactions: DbTransaction[], context
       estimated_savings: Math.round(avgMonthly),
       priority,
       vendor,
-      trigger_transaction_ids: recent.filter(tx => (tx.vendor ?? tx.description?.slice(0,40)) === vendor).map(tx => tx.id),
-      detection_logic: `Paiement récurrent identifié sur ${months.length} mois (${months[0]} → ${months[months.length-1]}) — coût moyen : ${avgMonthly.toFixed(0)} CHF/mois — total période : ${totalSpent.toFixed(0)} CHF`,
-      comparison_basis: { vendor, months_detected: months, avg_monthly: Math.round(avgMonthly), total_spent: Math.round(totalSpent) },
+      trigger_transaction_ids: recent
+        .filter((tx) => (tx.vendor ?? tx.description?.slice(0, 40)) === vendor)
+        .map((tx) => tx.id),
+      detection_logic: `Paiement récurrent identifié sur ${months.length} mois (${months[0]} → ${months[months.length - 1]}) — coût moyen : ${avgMonthly.toFixed(0)} CHF/mois — total période : ${totalSpent.toFixed(0)} CHF`,
+      comparison_basis: {
+        vendor,
+        months_detected: months,
+        avg_monthly: Math.round(avgMonthly),
+        total_spent: Math.round(totalSpent),
+      },
     });
   }
 

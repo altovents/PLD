@@ -21,7 +21,7 @@ export interface CompanyContext {
 }
 
 export interface LeakCandidate {
-  type: "duplicate" | "unused_subscription" | "price_increase" | "progressive_increase";
+  type: "duplicate" | "unused_subscription" | "price_increase" | "progressive_increase" | "overlapping_services" | "ghost_reactivation";
   title: string;
   description: string;
   estimated_savings: number;
