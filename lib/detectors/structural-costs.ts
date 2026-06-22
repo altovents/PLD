@@ -12,9 +12,10 @@ const STRUCTURAL_PATTERNS: RegExp[] = [
   /salaire|salaires|lohn|löhne|virement.*salaire|paie\b|payroll/i,
 
   // ── Charges sociales obligatoires ──────────────────────────────────────
-  /caisse\s+(avs|de\s+compensation|de\s+pension)|ahv|lpp\b|prévoyance|prevoyance/i,
+  /caisse\s+(avs|de\s+compensation|de\s+pension|compensation)|ahv|\bavs\b|lpp\b|prévoyance|prevoyance/i,
   /suva|caisse\s+nationale/i,
   /seco|service\s+de\s+l.emploi/i,
+  /cotisations?\s+(avs|lpp|sociales)|charges\s+sociales/i,
 
   // ── Assurances ──────────────────────────────────────────────────────────
   /\baxa\b|allianz|zurich\s+(assurance|insurance|vie)|swiss\s+life/i,

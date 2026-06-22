@@ -165,7 +165,7 @@ const VENDOR_PATTERNS: Array<[RegExp, string]> = [
   [/quickbooks/i, "QuickBooks"],
   [/xero/i, "Xero"],
   [/bexio/i, "Bexio"],
-  [/sage/i, "Sage"],
+  [/\bsage\b/i, "Sage"],
   [/banana/i, "Banana Comptabilité"],
   // Payments & Finance
   [/stripe/i, "Stripe"],
