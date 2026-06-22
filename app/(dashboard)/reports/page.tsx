@@ -60,11 +60,11 @@ export default async function ReportsPage() {
         {hasLeaks && isPaid && <DownloadButton />}
         {hasLeaks && !isPaid && (
           <Link
-            href="/#pricing"
-            className="flex items-center gap-2 bg-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm font-semibold"
-            title="Disponible avec un abonnement payant"
+            href="/checkout?plan=growth"
+            className="flex items-center gap-2 bg-[#e85d04] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#c94d00] transition-colors"
+            title="Passer à un plan payant pour télécharger"
           >
-            🔒 Télécharger PDF — Plan payant
+            🔒 Débloquer le PDF
           </Link>
         )}
       </div>
@@ -126,7 +126,7 @@ export default async function ReportsPage() {
                       🔒 {hiddenCount} anomalie{hiddenCount > 1 ? "s" : ""} masquée{hiddenCount > 1 ? "s" : ""}
                     </span>
                     <Link
-                      href="/#pricing"
+                      href="/checkout?plan=growth"
                       className="text-xs bg-[#e85d04] text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-[#c94d00] transition-colors"
                     >
                       Débloquer →

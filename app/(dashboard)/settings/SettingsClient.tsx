@@ -172,12 +172,26 @@ export default function SettingsClient({
               )}
             </div>
           ) : (
-            <a
-              href="/#pricing"
-              className="bg-[#e85d04] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#c94d00] transition-colors"
-            >
-              Passer Pro →
-            </a>
+            <div className="flex flex-col items-end gap-2">
+              <a
+                href="/checkout?plan=starter"
+                className="bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-white/30 transition-colors"
+              >
+                Starter — 149 CHF/mois
+              </a>
+              <a
+                href="/checkout?plan=growth"
+                className="bg-[#e85d04] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#c94d00] transition-colors"
+              >
+                Growth — 299 CHF/mois ★
+              </a>
+              <a
+                href="/checkout?plan=pro"
+                className="bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-white/30 transition-colors"
+              >
+                Pro — 599 CHF/mois
+              </a>
+            </div>
           )}
         </div>
       </div>

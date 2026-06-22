@@ -12,7 +12,11 @@ export interface DbLeak {
   detected_at: string;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { success?: string };
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -35,6 +39,7 @@ export default async function DashboardPage() {
     <DashboardClient
       dbLeaks={dbLeaks ?? []}
       plan={profile?.plan ?? "trial"}
+      paymentSuccess={searchParams.success === "true"}
     />
   );
 }

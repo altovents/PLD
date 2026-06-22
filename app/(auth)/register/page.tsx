@@ -35,6 +35,11 @@ export default async function RegisterPage({
     // Non-blocking welcome email (Resend key may not be set yet)
     sendWelcomeEmail(email, firstName).catch(() => {});
 
+    const validPlans = ["starter", "growth", "pro"];
+    const plan = String(formData.get("plan") ?? "").trim();
+    if (plan && validPlans.includes(plan)) {
+      redirect(`/checkout?plan=${plan}`);
+    }
     redirect("/import");
   }
 
@@ -74,6 +79,7 @@ export default async function RegisterPage({
           )}
 
           <form action={registerAction} className="space-y-4">
+            {params.plan && <input type="hidden" name="plan" value={params.plan} />}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-white/50 mb-1.5">Prénom</label>

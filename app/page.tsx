@@ -63,17 +63,17 @@ const TESTIMONIALS = [
 const PLANS = [
   {
     name: "Starter", target: "PME 10–30 employés", price: 149, featured: false,
-    href: "/register?plan=starter",
+    href: "/checkout?plan=starter",
     features: ["1 import CSV / mois", "Détection complète des fuites", "Dashboard + alertes", "1 rapport PDF/mois", "Support email"],
   },
   {
     name: "Growth", target: "PME 30–100 employés", price: 299, featured: true,
-    href: "/register?plan=growth",
+    href: "/checkout?plan=growth",
     features: ["5 imports CSV / mois", "Détection complète des fuites", "Dashboard + alertes en temps réel", "Rapports PDF illimités", "3 utilisateurs", "Support prioritaire"],
   },
   {
     name: "Pro", target: "100–200 employés", price: 599, featured: false,
-    href: "/register?plan=pro",
+    href: "/checkout?plan=pro",
     features: ["Imports CSV illimités", "Multi-entités + benchmarks", "Dashboard personnalisable", "Rapports sur-mesure", "Utilisateurs illimités", "Account manager + SLA"],
   },
 ];

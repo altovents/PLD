@@ -33,10 +33,10 @@ export default function PaywallOverlay({
             Vous voyez {visibleCount} sur {totalCount}. Passez à un plan payant pour tout débloquer.
           </p>
           <a
-            href="/#pricing"
+            href="/checkout?plan=growth"
             className="inline-block bg-[#e85d04] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#c94d00] transition-colors"
           >
-            Voir les plans →
+            Débloquer maintenant →
           </a>
         </div>
       </div>

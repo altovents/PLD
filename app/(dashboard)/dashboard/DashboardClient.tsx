@@ -60,8 +60,8 @@ function TrialLockWall({
         <span className="font-bold">{formatCHF(totalSavings)}/mois</span>
       </p>
       <a
-        href="/#pricing"
-        className="inline-block bg-[#1e3a5f] text-white px-6 py-3 rounded-xl font-semibold text-sm hover:bg-[#162c45] transition-colors"
+        href="/checkout?plan=growth"
+        className="inline-block bg-[#e85d04] text-white px-6 py-3 rounded-xl font-semibold text-sm hover:bg-[#c94d00] transition-colors"
       >
         Débloquer l&apos;analyse complète → {formatCHF(totalSavings)}/mois récupérables
       </a>
@@ -69,7 +69,7 @@ function TrialLockWall({
   );
 }
 
-export default function DashboardClient({ dbLeaks, plan }: { dbLeaks: DbLeak[]; plan: string }) {
+export default function DashboardClient({ dbLeaks, plan, paymentSuccess }: { dbLeaks: DbLeak[]; plan: string; paymentSuccess?: boolean }) {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null | "loading">("loading");
 
   useEffect(() => {
@@ -105,6 +105,17 @@ export default function DashboardClient({ dbLeaks, plan }: { dbLeaks: DbLeak[]; 
 
     return (
       <div className="max-w-6xl mx-auto space-y-6">
+        {/* Payment success banner */}
+        {paymentSuccess && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <span className="text-2xl">🎉</span>
+            <div>
+              <p className="font-semibold text-green-800">Abonnement activé avec succès !</p>
+              <p className="text-sm text-green-600">Toutes les fonctionnalités sont maintenant débloquées.</p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
