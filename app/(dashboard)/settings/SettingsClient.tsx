@@ -14,6 +14,7 @@ const PLAN_INFO: Record<string, { label: string; price: string }> = {
   starter: { label: "Plan Starter",   price: "149 CHF/mois" },
   growth:  { label: "Plan Growth",    price: "299 CHF/mois" },
   pro:     { label: "Plan Pro",       price: "599 CHF/mois" },
+  admin:   { label: "Administrateur", price: "Accès illimité" },
 };
 
 function TrustedVendorsEditor() {
@@ -106,8 +107,9 @@ export default function SettingsClient({
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
 
-  const planInfo = PLAN_INFO[profile.plan] ?? PLAN_INFO.trial;
-  const isPaid   = profile.plan !== "trial";
+  const planInfo  = PLAN_INFO[profile.plan] ?? PLAN_INFO.trial;
+  const isAdmin   = profile.plan === "admin";
+  const isPaid    = profile.plan !== "trial";
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -158,7 +160,11 @@ export default function SettingsClient({
             <p className="font-bold text-lg">{planInfo.label}</p>
             <p className="text-blue-200 text-sm">{planInfo.price}</p>
           </div>
-          {isPaid ? (
+          {isAdmin ? (
+            <span className="text-xs bg-white/20 text-white px-3 py-1.5 rounded-full font-semibold">
+              ⚙️ Compte interne
+            </span>
+          ) : isPaid ? (
             <div className="flex flex-col items-end gap-1">
               <button
                 onClick={handlePortal}
