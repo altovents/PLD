@@ -101,3 +101,19 @@ alter table public.leaks
 alter table public.leaks drop constraint if exists leaks_status_check;
 alter table public.leaks add constraint leaks_status_check
   check (status in ('open', 'acknowledged', 'resolved', 'dismissed'));
+
+-- Learned vendor→category mappings (accounting feature)
+create table if not exists public.vendor_category_mappings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  vendor_key text not null,
+  category text not null,
+  vat_rate_override numeric,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, vendor_key)
+);
+
+alter table public.vendor_category_mappings enable row level security;
+create policy "Users manage own mappings" on public.vendor_category_mappings
+  for all using (auth.uid() = user_id);

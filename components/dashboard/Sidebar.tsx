@@ -7,6 +7,7 @@ const NAV = [
   { href: "/import",       label: "Importer CSV",    icon: "⬆️" },
   { href: "/transactions", label: "Transactions",    icon: "💳" },
   { href: "/alerts",       label: "Alertes",         icon: "🔔" },
+  { href: "/comptabilite", label: "Comptabilité",    icon: "🧾" },
   { href: "/reports",      label: "Rapports PDF",    icon: "📄" },
   { href: "/settings",     label: "Paramètres",      icon: "⚙️" },
 ];
