@@ -1,6 +1,9 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy init — avoids crash at build time when RESEND_API_KEY is not set
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY ?? "");
+}
 const FROM = process.env.RESEND_FROM_EMAIL ?? "Profit Leak Detection <hello@profitleakdetection.ch>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://profitleakdetection.ch";
 
@@ -104,7 +107,7 @@ export async function sendWelcomeEmail(to: string, firstName: string) {
     </p>
   `;
 
-  return resend.emails.send({ from: FROM, to, subject: "Bienvenue — démarrez votre audit gratuit", html: layout(content) });
+  return getResend().emails.send({ from: FROM, to, subject: "Bienvenue — démarrez votre audit gratuit", html: layout(content) });
 }
 
 function step(n: string, title: string, desc: string): string {
@@ -162,7 +165,7 @@ export async function sendLeakAlertEmail(
     ${button("Voir le détail et agir →", `${APP_URL}/dashboard`)}
   `;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: `${leaksCount} fuite${leaksCount > 1 ? "s" : ""} détectée${leaksCount > 1 ? "s" : ""} — CHF ${totalSavings} récupérables`,
@@ -207,7 +210,7 @@ export async function sendMonthlyDigestEmail(
     ${button("Voir mon tableau de bord →", `${APP_URL}/dashboard`)}
   `;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: `Votre résumé Profit Leak — ${month}`,
@@ -291,7 +294,7 @@ export async function sendWeeklyDigestEmail(
 </body>
 </html>`;
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: "Profit Leak Detection <digest@profitleak.ch>",
     to,
     subject: `Résumé semaine du ${weekLabel} — ${topLeaks.length > 0 ? `${topLeaks.length} anomalie${topLeaks.length > 1 ? "s" : ""} ouvertes` : "Tout est en ordre"}`,
