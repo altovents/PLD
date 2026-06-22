@@ -399,12 +399,13 @@ function detectUnusedSubscriptions(byVendor: Map<string, Transaction[]>): Detect
     const isConsistent = avgAmt > 0 && (maxAmt - minAmt) / avgAmt < 0.05;
 
     if (isConsistent && avgAmt >= 30) {
+      const subPriority = avgAmt > 200 ? "high" : avgAmt > 60 ? "medium" : "low";
       leaks.push({
         id: nextId(), type: "unused_subscription",
         title: `Abonnement récurrent — ${vendor}`,
         description: `${vendor} facture ${avgAmt.toFixed(2)} CHF/mois depuis ${monthCount} mois (total : ${(avgAmt * monthCount).toFixed(0)} CHF). Vérifiez si cet abonnement est encore activement utilisé.`,
         amount: avgAmt,
-        priority: avgAmt >= 100 ? "high" : "medium",
+        priority: subPriority,
         vendor, transactions: debits,
         actionItems: [
           `Vérifiez les accès actifs sur le portail ${vendor}`,
@@ -498,9 +499,11 @@ function detectBankFees(byVendor: Map<string, Transaction[]>): DetectedLeak[] {
 function detectOverlappingServices(byVendor: Map<string, Transaction[]>): DetectedLeak[] {
   const leaks: DetectedLeak[] = [];
   const activeVendors = new Set(Array.from(byVendor.keys()));
+  // Track vendors already included in a doublon alert — avoid flagging M365 in 2 categories
+  const alreadyFlaggedInDoublon = new Set<string>();
 
   for (const [category, vendors] of Object.entries(SERVICE_CATEGORIES)) {
-    const active = vendors.filter((v) => activeVendors.has(v));
+    const active = vendors.filter((v) => activeVendors.has(v) && !alreadyFlaggedInDoublon.has(v));
     if (active.length < 2) continue;
 
     const allTxs = active.flatMap((v) => (byVendor.get(v) ?? []).filter((t) => t.amount < 0));
@@ -515,6 +518,9 @@ function detectOverlappingServices(byVendor: Map<string, Transaction[]>): Detect
     const savings      = totalMonthly - cheapest.monthly;
 
     if (savings < 15) continue;
+
+    // Mark all vendors in this doublon so they won't appear in another category
+    active.forEach((v) => alreadyFlaggedInDoublon.add(v));
 
     leaks.push({
       id: nextId(), type: "overlapping_services",
@@ -657,16 +663,23 @@ function detectGhostReactivations(byVendor: Map<string, Transaction[]>): Detecte
       .sort((a, b) => a.date.getTime() - b.date.getTime());
     if (debits.length < 3) continue;
 
+    // Skip usage-based billing (variable amounts = API/metered, not a fixed subscription)
+    const allAmounts = debits.map((t) => Math.abs(t.amount));
+    const mean = allAmounts.reduce((s, a) => s + a, 0) / allAmounts.length;
+    const maxDev = Math.max(...allAmounts.map((a) => Math.abs(a - mean)));
+    if (mean > 0 && maxDev / mean > 0.25) continue;
+
     for (let i = 1; i < debits.length; i++) {
       const gapDays = (debits[i].date.getTime() - debits[i - 1].date.getTime()) / 86400000;
-      if (gapDays >= 60) {
+      if (gapDays >= 90) {
         const resumed = debits.slice(i);
         const amt     = Math.abs(resumed[0].amount);
+        const ghostPriority = amt > 150 ? "high" : amt > 60 ? "medium" : "low";
         leaks.push({
           id: nextId(), type: "ghost_reactivation",
           title: `Abonnement réactivé — ${vendor}`,
           description: `${vendor} était inactif ${Math.round(gapDays)} jours puis a repris les prélèvements (${amt.toFixed(0)} CHF). Vérifiez si cette réactivation était intentionnelle ou non.`,
-          amount: amt, priority: "high",
+          amount: amt, priority: ghostPriority,
           vendor, transactions: resumed,
           actionItems: [
             `Vérifiez votre compte ${vendor} — qui a réactivé l'abonnement et quand`,
@@ -727,16 +740,22 @@ export function detectLeaks(transactions: Transaction[]): DetectedLeak[] {
   const currencyFees     = detectCurrencyFees(transactions);
   const bankFees         = detectBankFees(byVendor);
 
-  // Ghost reactivation takes priority over subscription — remove duplicate vendor alerts
+  // Vendors already in a doublon alert — don't also flag as subscription (redundant)
+  const overlappingVendors = new Set(
+    overlapping.flatMap((l) => l.transactions.map((t) => t.vendor))
+  );
+  // Ghost reactivation takes priority over subscription for the same vendor
   const ghostVendors = new Set(ghostReactivated.map((l) => l.vendor));
-  const subscriptions = detectUnusedSubscriptions(byVendor)
-    .filter((l) => !ghostVendors.has(l.vendor));
 
-  // Vendors already flagged as subscription/duplicate — skip for price/drift detectors
+  const subscriptions = detectUnusedSubscriptions(byVendor)
+    .filter((l) => !ghostVendors.has(l.vendor) && !overlappingVendors.has(l.vendor));
+
+  // Vendors already flagged — skip for price/drift detectors
   const flaggedVendors = new Set([
     ...subscriptions.map((l) => l.vendor),
     ...duplicates.map((l) => l.vendor),
     ...ghostReactivated.map((l) => l.vendor),
+    ...overlappingVendors,
   ]);
 
   const priceIncreases   = detectPriceIncreases(byVendor, flaggedVendors);
