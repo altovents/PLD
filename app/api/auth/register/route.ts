@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { sendWelcomeEmail } from "@/lib/email";
 import { isFreeDomain, FREE_DOMAIN_ERROR } from "@/lib/free-email-domains";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const email = String(formData.get("email"));

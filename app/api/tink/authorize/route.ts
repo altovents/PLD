@@ -9,6 +9,8 @@ import {
   buildTinkLinkUrl,
 } from "@/lib/tink";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   // 1. Get the authenticated Supabase user
   const supabase = await createClient();

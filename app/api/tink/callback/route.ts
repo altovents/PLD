@@ -9,6 +9,8 @@ import {
   TinkTransaction,
 } from "@/lib/tink";
 
+export const dynamic = "force-dynamic";
+
 function createAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

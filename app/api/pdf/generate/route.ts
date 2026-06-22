@@ -5,6 +5,8 @@ import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
 import ReportDocument from "@/components/pdf/ReportDocument";
 import { createElement, type ReactElement } from "react";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   // 1. Auth
   const supabase = await createClient();

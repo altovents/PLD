@@ -3,6 +3,8 @@ import { stripe, PLANS } from "@/lib/stripe";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 // Admin client — bypasses RLS, required for webhook (no user session)
 function createAdminClient() {
   return createClient(

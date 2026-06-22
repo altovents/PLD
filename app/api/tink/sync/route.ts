@@ -7,6 +7,8 @@ import {
   buildTinkLinkUrl,
 } from "@/lib/tink";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/tink/sync
  * Initiates a new Tink Link session so the user can re-connect their bank

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
 
+export const dynamic = "force-dynamic";
+
 function admin() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

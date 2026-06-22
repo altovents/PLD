@@ -4,6 +4,8 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { runAnalysis } from "@/lib/analysis-engine";
 import { sendLeakAlertEmail } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 export async function POST() {
   const supabase = await createClient();
   const {

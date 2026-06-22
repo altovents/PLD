@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { sendWeeklyDigestEmail } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 // This route is meant to be called by a cron job (e.g., every Monday at 8:00)
 // Protect it with a shared secret in the Authorization header.
 export async function POST(request: Request) {
