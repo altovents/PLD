@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCHF, formatDate } from "@/lib/utils";
 import AlertActions from "./AlertActions";
 import LeakTransparencyPanel from "@/components/dashboard/LeakTransparencyPanel";
+import RerunAnalysisButton from "./RerunAnalysisButton";
 
 const TYPE_LABELS: Record<string, { label: string; icon: string; color: string }> = {
   duplicate:             { label: "Double paiement",     icon: "🔁", color: "bg-red-50 text-red-700 border-red-100"       },
@@ -42,9 +43,12 @@ export default async function AlertsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#1e3a5f]">Alertes</h1>
-        <p className="text-gray-500 text-sm mt-1">Anomalies détectées sur vos dépenses</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1e3a5f]">Alertes</h1>
+          <p className="text-gray-500 text-sm mt-1">Anomalies détectées sur vos dépenses</p>
+        </div>
+        <RerunAnalysisButton />
       </div>
 
       {/* Empty state */}
