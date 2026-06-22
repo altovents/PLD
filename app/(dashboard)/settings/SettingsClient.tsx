@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Profile {
   first_name: string | null;
@@ -15,6 +15,83 @@ const PLAN_INFO: Record<string, { label: string; price: string }> = {
   growth:  { label: "Plan Growth",    price: "299 CHF/mois" },
   pro:     { label: "Plan Pro",       price: "599 CHF/mois" },
 };
+
+function TrustedVendorsEditor() {
+  const [vendors, setVendors] = useState<string[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/company-context/get")
+      .then((r) => r.json())
+      .then((d: { trusted_vendors?: string[] }) => {
+        setVendors(d?.trusted_vendors ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  function addVendor() {
+    const v = input.trim();
+    if (v && !vendors.includes(v)) setVendors([...vendors, v]);
+    setInput("");
+  }
+
+  async function save() {
+    setSaving(true);
+    await fetch("/api/company-context/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trusted_vendors: vendors }),
+    });
+    setSaving(false);
+  }
+
+  if (loading) return <p className="text-sm text-gray-400">Chargement…</p>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addVendor()}
+          placeholder="Nom du fournisseur…"
+          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]"
+        />
+        <button
+          onClick={addVendor}
+          className="px-4 py-2.5 bg-[#1e3a5f] text-white rounded-xl text-sm font-semibold hover:bg-[#162c45] transition-colors"
+        >
+          Ajouter
+        </button>
+      </div>
+      {vendors.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {vendors.map((v) => (
+            <span key={v} className="flex items-center gap-1.5 bg-[#1e3a5f]/10 text-[#1e3a5f] text-sm px-3 py-1.5 rounded-full font-medium">
+              {v}
+              <button onClick={() => setVendors(vendors.filter((x) => x !== v))} className="text-[#1e3a5f]/50 hover:text-[#1e3a5f] leading-none">×</button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400 italic">Aucun fournisseur de confiance configuré.</p>
+      )}
+      {vendors.length > 0 && (
+        <button
+          onClick={save}
+          disabled={saving}
+          className="bg-[#1e3a5f] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#162c45] transition-colors disabled:opacity-60"
+        >
+          {saving ? "Sauvegarde…" : "Sauvegarder"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsClient({
   profile,
@@ -184,6 +261,13 @@ export default function SettingsClient({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Fournisseurs de confiance */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6">
+        <h2 className="font-semibold text-gray-800 mb-1">Fournisseurs de confiance</h2>
+        <p className="text-sm text-gray-400 mb-4">Ces fournisseurs ne déclencheront pas d&apos;alerte de hausse anormale.</p>
+        <TrustedVendorsEditor />
       </div>
     </div>
   );

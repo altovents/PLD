@@ -72,3 +72,32 @@ $$;
 create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Company context (onboarding)
+create table if not exists public.company_context (
+  user_id uuid references public.profiles(id) on delete cascade primary key,
+  industry text check (industry in ('restauration', 'industrie', 'services', 'commerce', 'sante', 'autre')) default 'autre',
+  employees_count text check (employees_count in ('1-5', '6-20', '21-50', '51-200', '200+')) default '1-5',
+  alert_thresholds jsonb default '{"price_increase_pct": 10, "duplicate_days": 7, "progressive_drift_pct": 15}'::jsonb,
+  budget_categories jsonb default '{}'::jsonb,
+  trusted_vendors jsonb default '[]'::jsonb,
+  onboarding_completed boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.company_context enable row level security;
+create policy "Users manage own context" on public.company_context for all using (auth.uid() = user_id);
+
+-- Add transparency columns to leaks
+alter table public.leaks
+  add column if not exists trigger_transaction_ids jsonb default '[]'::jsonb,
+  add column if not exists detection_logic text,
+  add column if not exists comparison_basis jsonb default '{}'::jsonb,
+  add column if not exists resolution_note text,
+  add column if not exists contacted_vendor_at timestamptz;
+
+-- Extend leaks status to include 'acknowledged'
+alter table public.leaks drop constraint if exists leaks_status_check;
+alter table public.leaks add constraint leaks_status_check
+  check (status in ('open', 'acknowledged', 'resolved', 'dismissed'));

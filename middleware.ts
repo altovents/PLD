@@ -48,6 +48,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
+  // Redirect to onboarding if not yet completed (for authenticated users on dashboard routes)
+  if (user && pathname.startsWith("/dashboard") || user && pathname.startsWith("/alerts") || user && pathname.startsWith("/reports") || user && pathname.startsWith("/transactions") || user && pathname.startsWith("/import")) {
+    try {
+      const { data: ctx } = await supabase
+        .from("company_context")
+        .select("onboarding_completed")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!ctx?.onboarding_completed && pathname !== "/onboarding") {
+        return NextResponse.redirect(new URL("/onboarding", request.url));
+      }
+    } catch {
+      // If context table doesn't exist yet, skip redirect
+    }
+  }
+
   return supabaseResponse;
 }
 

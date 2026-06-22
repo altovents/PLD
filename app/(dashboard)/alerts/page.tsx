@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCHF, formatDate } from "@/lib/utils";
 import AlertActions from "./AlertActions";
+import LeakTransparencyPanel from "@/components/dashboard/LeakTransparencyPanel";
 
 const TYPE_LABELS: Record<string, { label: string; icon: string; color: string }> = {
   duplicate:             { label: "Double paiement",     icon: "🔁", color: "bg-red-50 text-red-700 border-red-100"       },
@@ -31,12 +32,13 @@ export default async function AlertsPage() {
 
   const { data: leaks } = await supabase
     .from("leaks")
-    .select("id, type, title, description, estimated_savings, priority, vendor, detected_at, status")
+    .select("id, type, title, description, estimated_savings, priority, vendor, detected_at, status, detection_logic, comparison_basis, trigger_transaction_ids")
     .order("detected_at", { ascending: false })
     .limit(50);
 
-  const open     = leaks?.filter((l) => l.status === "open")     ?? [];
-  const resolved = leaks?.filter((l) => l.status !== "open")     ?? [];
+  const open         = leaks?.filter((l) => l.status === "open")         ?? [];
+  const acknowledged = leaks?.filter((l) => l.status === "acknowledged") ?? [];
+  const resolved     = leaks?.filter((l) => l.status === "resolved" || l.status === "dismissed") ?? [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -85,13 +87,54 @@ export default async function AlertsPage() {
                   <p className="text-xs opacity-50 mt-1">
                     Détecté le {formatDate(leak.detected_at)}
                   </p>
+                  <LeakTransparencyPanel
+                    detection_logic={leak.detection_logic}
+                    comparison_basis={leak.comparison_basis}
+                    trigger_count={Array.isArray(leak.trigger_transaction_ids) ? leak.trigger_transaction_ids.length : 0}
+                  />
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="font-bold text-base">
                     {formatCHF(leak.estimated_savings)}
                   </div>
                   <div className="text-xs opacity-60 mb-2">récupérables</div>
-                  <AlertActions id={leak.id} />
+                  <AlertActions
+                    id={leak.id}
+                    vendor={leak.vendor}
+                    title={leak.title}
+                    estimated_savings={leak.estimated_savings}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {/* In progress */}
+      {acknowledged.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            En cours — {acknowledged.length}
+          </h2>
+          {acknowledged.map((leak) => {
+            const t = TYPE_LABELS[leak.type] ?? TYPE_LABELS.duplicate;
+            return (
+              <div
+                key={leak.id}
+                className={`rounded-xl border p-4 flex items-start gap-4 opacity-80 ${t.color}`}
+              >
+                <span className="text-2xl mt-0.5">⏳</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-semibold text-sm">{leak.title}</span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">En cours</span>
+                  </div>
+                  <p className="text-xs opacity-80">{leak.description}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-bold text-base">{new Intl.NumberFormat("fr-CH", { style: "currency", currency: "CHF", minimumFractionDigits: 0 }).format(leak.estimated_savings)}</div>
+                  <AlertActions id={leak.id} vendor={leak.vendor} title={leak.title} estimated_savings={leak.estimated_savings} />
                 </div>
               </div>
             );
@@ -114,7 +157,7 @@ export default async function AlertsPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-gray-600">{leak.title}</p>
                 <p className="text-xs text-gray-400">
-                  {leak.status === "resolved" ? "Résolu" : "Ignoré"} · {formatDate(leak.detected_at)}
+                  {leak.status === "resolved" ? "Résolu" : leak.status === "acknowledged" ? "En cours" : "Ignoré"} · {formatDate(leak.detected_at)}
                 </p>
               </div>
               <span className="text-sm text-gray-500 font-medium">

@@ -223,3 +223,78 @@ function kpi(label: string, value: string, color: string): string {
     </div>
   `;
 }
+
+// ─── Weekly Digest Email ──────────────────────────────────────────────────────
+
+export async function sendWeeklyDigestEmail(
+  to: string,
+  firstName: string,
+  topLeaks: Array<{ title: string; estimated_savings: number; status: string }>,
+  totalOpenSavings: number,
+  resolvedCount: number,
+  weekLabel: string
+): Promise<void> {
+  const leakRows = topLeaks
+    .slice(0, 5)
+    .map(
+      (l) => `
+      <tr>
+        <td style="padding:10px 12px;font-size:14px;color:#374151;border-bottom:1px solid #f3f4f6;">${l.title}</td>
+        <td style="padding:10px 12px;font-size:14px;font-weight:600;color:#dc2626;text-align:right;border-bottom:1px solid #f3f4f6;">${Math.round(l.estimated_savings).toLocaleString("fr-CH")} CHF</td>
+      </tr>`
+    )
+    .join("");
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+    <div style="background:#1e3a5f;padding:32px 40px;">
+      <p style="margin:0;color:#93c5fd;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;">Résumé hebdomadaire</p>
+      <h1 style="margin:8px 0 0;color:#ffffff;font-size:24px;font-weight:700;">Semaine du ${weekLabel}</h1>
+    </div>
+
+    <div style="padding:32px 40px;">
+      <p style="margin:0 0 24px;color:#374151;font-size:15px;">Bonjour ${firstName},</p>
+
+      <div style="display:flex;gap:16px;margin-bottom:28px;">
+        <div style="flex:1;background:#fef2f2;border-radius:12px;padding:16px;text-align:center;">
+          <p style="margin:0;font-size:24px;font-weight:700;color:#dc2626;">${Math.round(totalOpenSavings).toLocaleString("fr-CH")} CHF</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#991b1b;">à récupérer</p>
+        </div>
+        <div style="flex:1;background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;">
+          <p style="margin:0;font-size:24px;font-weight:700;color:#16a34a;">${resolvedCount}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#15803d;">anomalie${resolvedCount > 1 ? "s" : ""} résolue${resolvedCount > 1 ? "s" : ""}</p>
+        </div>
+      </div>
+
+      ${topLeaks.length > 0 ? `
+      <h2 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Anomalies prioritaires</h2>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tbody>${leakRows}</tbody>
+      </table>` : `
+      <p style="color:#6b7280;font-size:14px;text-align:center;padding:20px;">Aucune anomalie ouverte cette semaine. Votre veille est à jour.</p>`}
+
+      <div style="text-align:center;margin-top:24px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://profitleak.ch"}/alerts" style="display:inline-block;background:#1e3a5f;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:600;">Voir toutes les alertes →</a>
+      </div>
+    </div>
+
+    <div style="padding:20px 40px;background:#f8fafc;border-top:1px solid #f1f5f9;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">
+        Profit Leak Detection · <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://profitleak.ch"}/settings" style="color:#9ca3af;">Gérer les notifications</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await resend.emails.send({
+    from: "Profit Leak Detection <digest@profitleak.ch>",
+    to,
+    subject: `Résumé semaine du ${weekLabel} — ${topLeaks.length > 0 ? `${topLeaks.length} anomalie${topLeaks.length > 1 ? "s" : ""} ouvertes` : "Tout est en ordre"}`,
+    html,
+  });
+}

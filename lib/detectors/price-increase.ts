@@ -1,4 +1,4 @@
-import type { DbTransaction, LeakCandidate } from "@/lib/analysis-engine";
+import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/analysis-engine";
 
 /**
  * Détecte les hausses soudaines chez un fournisseur :
@@ -6,8 +6,9 @@ import type { DbTransaction, LeakCandidate } from "@/lib/analysis-engine";
  *
  * Roadmap: "Même fournisseur, variation >10% vs moyenne 3 derniers mois"
  */
-export function detectPriceIncreases(transactions: DbTransaction[]): LeakCandidate[] {
+export function detectPriceIncreases(transactions: DbTransaction[], context?: CompanyContext): LeakCandidate[] {
   const debits = transactions.filter((tx) => tx.amount < 0);
+  const trustedVendors = (context?.trusted_vendors ?? []).map((v) => v.toLowerCase());
 
   // Group by vendor → month → total
   const vendorMonths: Record<string, Record<string, number>> = {};
@@ -33,7 +34,12 @@ export function detectPriceIncreases(transactions: DbTransaction[]): LeakCandida
   const refMonths = [monthOffset(-4), monthOffset(-3), monthOffset(-2)];
   const currentMonth = monthOffset(-1);
 
+  const threshold = (context?.alert_thresholds?.price_increase_pct ?? 10) / 100;
+
   for (const [vendor, monthMap] of Object.entries(vendorMonths)) {
+    // Skip trusted vendors
+    if (trustedVendors.includes(vendor.toLowerCase())) continue;
+
     const refValues = refMonths
       .map((m) => monthMap[m])
       .filter((v): v is number => v !== undefined);
@@ -46,7 +52,7 @@ export function detectPriceIncreases(transactions: DbTransaction[]): LeakCandida
     if (current === undefined) continue; // no spend this month → not an increase
 
     const changePct = (current - refAvg) / refAvg;
-    if (changePct <= 0.1) continue; // not a significant increase
+    if (changePct <= threshold) continue; // not a significant increase
 
     const excess = current - refAvg;
     const priority: "high" | "medium" = changePct > 0.2 ? "high" : "medium";
@@ -58,6 +64,9 @@ export function detectPriceIncreases(transactions: DbTransaction[]): LeakCandida
       estimated_savings: Math.round(excess),
       priority,
       vendor,
+      trigger_transaction_ids: debits.filter(tx => (tx.vendor ?? tx.description?.slice(0,40)) === vendor && tx.date.slice(0,7) === currentMonth).map(tx => tx.id),
+      detection_logic: `Fournisseur "${vendor}" — mois actuel : ${current.toFixed(0)} CHF vs moyenne de référence (${refMonths.filter(m => monthMap[m]).join(', ')}) : ${refAvg.toFixed(0)} CHF — variation : +${Math.round(changePct * 100)}% — seuil configuré : ${Math.round((context?.alert_thresholds?.price_increase_pct ?? 10))}%`,
+      comparison_basis: { vendor, current_month: currentMonth, current_amount: current, reference_months: refMonths, reference_avg: Math.round(refAvg), change_pct: Math.round(changePct * 100) },
     });
   }
 

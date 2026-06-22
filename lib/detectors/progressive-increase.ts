@@ -1,4 +1,4 @@
-import type { DbTransaction, LeakCandidate } from "@/lib/analysis-engine";
+import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/analysis-engine";
 
 /**
  * Détecte les hausses progressives sur 6 mois chez un même fournisseur.
@@ -9,9 +9,12 @@ import type { DbTransaction, LeakCandidate } from "@/lib/analysis-engine";
  */
 export function detectProgressiveIncreases(
   transactions: DbTransaction[],
-  vendorsAlreadyFlagged: Set<string>
+  vendorsAlreadyFlagged: Set<string>,
+  context?: CompanyContext
 ): LeakCandidate[] {
   const debits = transactions.filter((tx) => tx.amount < 0);
+  const driftThreshold = (context?.alert_thresholds?.progressive_drift_pct ?? 15) / 100;
+  const trustedVendors = (context?.trusted_vendors ?? []).map((v) => v.toLowerCase());
 
   // Collect last 6 complete months
   const now = new Date();
@@ -49,6 +52,9 @@ export function detectProgressiveIncreases(
     // Skip vendors already flagged by price_increase (avoid double-counting)
     if (vendorsAlreadyFlagged.has(vendor)) continue;
 
+    // Skip trusted vendors
+    if (trustedVendors.includes(vendor.toLowerCase())) continue;
+
     const presentMonths = window6.filter((m) => monthMap[m] !== undefined);
     if (presentMonths.length < 5) continue; // need enough data points
 
@@ -66,7 +72,7 @@ export function detectProgressiveIncreases(
     const recentAvg = recent.reduce((s, v) => s + v, 0) / recent.length;
 
     const drift = (recentAvg - earlyAvg) / earlyAvg;
-    if (drift <= 0.15) continue; // less than 15% total drift → not significant
+    if (drift <= driftThreshold) continue; // less than configured drift threshold → not significant
 
     const yearlyExcess = Math.round((recentAvg - earlyAvg) * 12);
 
@@ -77,6 +83,9 @@ export function detectProgressiveIncreases(
       estimated_savings: yearlyExcess,
       priority: "low",
       vendor,
+      trigger_transaction_ids: debits.filter(tx => (tx.vendor ?? tx.description?.slice(0,40)) === vendor && window6.includes(tx.date.slice(0,7))).map(tx => tx.id),
+      detection_logic: `Fournisseur "${vendor}" — moyenne début de période (${window6[0]}–${window6[1]}) : ${earlyAvg.toFixed(0)} CHF/mois → fin de période (${window6[4]}–${window6[5]}) : ${recentAvg.toFixed(0)} CHF/mois — dérive : +${Math.round(drift * 100)}% — seuil : ${context?.alert_thresholds?.progressive_drift_pct ?? 15}%`,
+      comparison_basis: { vendor, early_months: [window6[0], window6[1]], recent_months: [window6[4], window6[5]], early_avg: Math.round(earlyAvg), recent_avg: Math.round(recentAvg), drift_pct: Math.round(drift * 100) },
     });
   }
 

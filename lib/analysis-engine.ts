@@ -15,6 +15,16 @@ export interface DbTransaction {
   category: string | null;
 }
 
+export interface CompanyContext {
+  alert_thresholds?: {
+    price_increase_pct?: number
+    duplicate_days?: number
+    progressive_drift_pct?: number
+  }
+  trusted_vendors?: string[]
+  budget_categories?: Record<string, number>
+}
+
 export interface LeakCandidate {
   type: "duplicate" | "unused_subscription" | "price_increase" | "progressive_increase";
   title: string;
@@ -22,6 +32,9 @@ export interface LeakCandidate {
   estimated_savings: number;
   priority: "high" | "medium" | "low";
   vendor: string | null;
+  trigger_transaction_ids?: string[]
+  detection_logic?: string
+  comparison_basis?: Record<string, unknown>
 }
 
 export interface AnalysisResult {
@@ -54,16 +67,25 @@ export async function runAnalysis(userId: string): Promise<AnalysisResult> {
     return { leaks_count: 0, total_savings: 0, by_type: {} };
   }
 
+  // Fetch company context for custom thresholds
+  const { data: contextRow } = await supabase
+    .from("company_context")
+    .select("alert_thresholds, trusted_vendors, budget_categories")
+    .eq("user_id", userId)
+    .single();
+
+  const context: CompanyContext = contextRow ?? {};
+
   // 2. Run detectors
-  const duplicates = detectDuplicates(transactions);
-  const subscriptions = detectUnusedSubscriptions(transactions);
-  const priceIncreases = detectPriceIncreases(transactions);
+  const duplicates = detectDuplicates(transactions, context);
+  const subscriptions = detectUnusedSubscriptions(transactions, context);
+  const priceIncreases = detectPriceIncreases(transactions, context);
 
   // Pass price_increase vendors to avoid double-counting in progressive detector
   const flaggedVendors = new Set(
     priceIncreases.map((l) => l.vendor).filter((v): v is string => v !== null)
   );
-  const progressiveIncreases = detectProgressiveIncreases(transactions, flaggedVendors);
+  const progressiveIncreases = detectProgressiveIncreases(transactions, flaggedVendors, context);
 
   const allLeaks: LeakCandidate[] = [
     ...duplicates,
@@ -90,6 +112,9 @@ export async function runAnalysis(userId: string): Promise<AnalysisResult> {
       priority: leak.priority,
       vendor: leak.vendor,
       status: "open",
+      trigger_transaction_ids: leak.trigger_transaction_ids ?? [],
+      detection_logic: leak.detection_logic ?? null,
+      comparison_basis: leak.comparison_basis ?? {},
     }));
 
     const { error: insertError } = await supabase.from("leaks").insert(rows);

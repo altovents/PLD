@@ -1,199 +1,323 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+"use client";
 
-export default async function OnboardingPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-  if (!user) redirect("/login");
+const INDUSTRIES = [
+  { value: "restauration", label: "Restauration & Hôtellerie", icon: "🍽️" },
+  { value: "industrie",    label: "Industrie & Production",    icon: "🏭" },
+  { value: "services",     label: "Services professionnels",   icon: "💼" },
+  { value: "commerce",     label: "Commerce & Distribution",   icon: "🛒" },
+  { value: "sante",        label: "Santé & Médical",           icon: "🏥" },
+  { value: "autre",        label: "Autre secteur",             icon: "🏢" },
+];
 
-  const firstName =
-    (user.user_metadata?.first_name as string | undefined) ?? "là";
+const EMPLOYEE_RANGES = [
+  { value: "1-5",   label: "1 à 5 personnes" },
+  { value: "6-20",  label: "6 à 20 personnes" },
+  { value: "21-50", label: "21 à 50 personnes" },
+  { value: "51-200",label: "51 à 200 personnes" },
+  { value: "200+",  label: "Plus de 200 personnes" },
+];
 
-  const steps = [
-    {
-      id: "account",
-      title: "Compte créé",
-      description: "Votre espace Profit Leak Detection est prêt.",
-      done: true,
-      cta: null as null | { label: string; href: string },
-    },
-    {
-      id: "import",
-      title: "Importer votre relevé bancaire",
-      description:
-        "Exportez un CSV depuis votre banque (PostFinance, UBS, Raiffeisen, BCGE, BCV…) et déposez-le dans l'import. Aucune donnée bancaire ne transite sur nos serveurs.",
-      done: false,
-      cta: { label: "Importer mon CSV", href: "/import" },
-    },
-    {
-      id: "analysis",
-      title: "Résultats de l'analyse",
-      description:
-        "Notre moteur détecte doublons, abonnements inutilisés, hausses fournisseurs et dérives progressives. Résultats en moins de 60 secondes.",
-      done: false,
-      cta: null,
-    },
-  ];
+const CATEGORY_LABELS: Record<string, string> = {
+  logiciels:     "Logiciels & SaaS",
+  telecoms:      "Télécom & Internet",
+  fournitures:   "Fournitures & Matériel",
+  maintenance:   "Maintenance & Réparations",
+  marketing:     "Marketing & Publicité",
+  formation:     "Formation & RH",
+  assurances:    "Assurances",
+  energie:       "Énergie & Utilities",
+};
 
-  const currentStep = steps.findIndex((s) => !s.done);
+export default function OnboardingPage() {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form state
+  const [industry, setIndustry] = useState("");
+  const [employees, setEmployees] = useState("");
+  const [trustedVendorInput, setTrustedVendorInput] = useState("");
+  const [trustedVendors, setTrustedVendors] = useState<string[]>([]);
+  const [budgets, setBudgets] = useState<Record<string, string>>({});
+  const [thresholds, setThresholds] = useState({
+    price_increase_pct: "10",
+    duplicate_days: "7",
+    progressive_drift_pct: "15",
+  });
+
+  function addVendor() {
+    const v = trustedVendorInput.trim();
+    if (v && !trustedVendors.includes(v)) {
+      setTrustedVendors([...trustedVendors, v]);
+    }
+    setTrustedVendorInput("");
+  }
+
+  function removeVendor(v: string) {
+    setTrustedVendors(trustedVendors.filter((x) => x !== v));
+  }
+
+  async function handleFinish() {
+    setSaving(true);
+    setError(null);
+    const res = await fetch("/api/onboarding/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        industry,
+        employees_count: employees,
+        trusted_vendors: trustedVendors,
+        budget_categories: Object.fromEntries(
+          Object.entries(budgets)
+            .filter(([, v]) => v !== "" && !isNaN(Number(v)))
+            .map(([k, v]) => [k, Number(v)])
+        ),
+        alert_thresholds: {
+          price_increase_pct: Number(thresholds.price_increase_pct) || 10,
+          duplicate_days: Number(thresholds.duplicate_days) || 7,
+          progressive_drift_pct: Number(thresholds.progressive_drift_pct) || 15,
+        },
+      }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      router.push("/dashboard");
+    } else {
+      setError("Erreur lors de la sauvegarde. Veuillez réessayer.");
+    }
+  }
+
+  const progressPct = Math.round((step / 4) * 100);
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden"
-      style={{ background: "#0c0c12" }}
-    >
-      {/* Ambient glow */}
-      <div
-        className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-3xl opacity-25"
-        style={{
-          background:
-            "radial-gradient(ellipse, rgba(139,92,246,0.2), transparent 70%)",
-        }}
-      />
+    <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+      {/* Progress bar */}
+      <div className="h-1.5 bg-gray-100">
+        <div
+          className="h-full bg-[#e85d04] transition-all duration-500"
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
 
-      <div className="relative w-full max-w-lg">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #6366f1, #4f46e5)" }}
-            >
-              <span className="text-white font-bold text-sm">PL</span>
-            </div>
-            <span className="text-white font-semibold">Profit Leak</span>
-          </Link>
-          <h1 className="text-2xl font-bold text-white">
-            Bienvenue, {firstName}&nbsp;!
+      <div className="p-8">
+        <div className="mb-6">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+            Étape {step} sur 4
+          </span>
+          <h1 className="text-2xl font-bold text-[#1e3a5f] mt-1">
+            {step === 1 && "Parlez-nous de votre entreprise"}
+            {step === 2 && "Vos fournisseurs de confiance"}
+            {step === 3 && "Vos budgets par catégorie"}
+            {step === 4 && "Seuils d'alerte"}
           </h1>
-          <p className="text-white/40 text-sm mt-2">
-            2 étapes pour découvrir où part votre argent
+          <p className="text-gray-500 text-sm mt-1">
+            {step === 1 && "Ces informations permettent d'adapter les analyses à votre secteur."}
+            {step === 2 && "Les fournisseurs listés ici ne déclencheront pas d'alerte \"hausse anormale\"."}
+            {step === 3 && "Optionnel — aide à contextualiser vos dépenses (peut être complété plus tard)."}
+            {step === 4 && "Définissez à partir de quel seuil une variation est considérée comme anormale."}
           </p>
         </div>
 
-        {/* Steps */}
-        <div className="space-y-3">
-          {steps.map((step, i) => {
-            const isActive = i === currentStep;
-            const isPast = step.done;
-            const isFuture = !step.done && i > currentStep;
+        {/* Step 1 — Industry + employees */}
+        {step === 1 && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Secteur d&apos;activité</label>
+              <div className="grid grid-cols-2 gap-3">
+                {INDUSTRIES.map((ind) => (
+                  <button
+                    key={ind.value}
+                    onClick={() => setIndustry(ind.value)}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${
+                      industry === ind.value
+                        ? "border-[#1e3a5f] bg-[#1e3a5f]/5 text-[#1e3a5f]"
+                        : "border-gray-200 hover:border-gray-300 text-gray-600"
+                    }`}
+                  >
+                    <span className="text-xl">{ind.icon}</span>
+                    {ind.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Taille de l&apos;entreprise</label>
+              <div className="space-y-2">
+                {EMPLOYEE_RANGES.map((r) => (
+                  <button
+                    key={r.value}
+                    onClick={() => setEmployees(r.value)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      employees === r.value
+                        ? "border-[#1e3a5f] bg-[#1e3a5f]/5 text-[#1e3a5f]"
+                        : "border-gray-200 hover:border-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
-            return (
-              <div
-                key={step.id}
-                className="rounded-2xl p-6 transition-all"
-                style={{
-                  background: isPast
-                    ? "rgba(34,197,94,0.07)"
-                    : isActive
-                    ? "rgba(255,255,255,0.07)"
-                    : "rgba(255,255,255,0.03)",
-                  border: isPast
-                    ? "1px solid rgba(34,197,94,0.25)"
-                    : isActive
-                    ? "1px solid rgba(255,255,255,0.15)"
-                    : "1px solid rgba(255,255,255,0.06)",
-                  opacity: isFuture ? 0.45 : 1,
-                }}
+        {/* Step 2 — Trusted vendors */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 bg-blue-50 border border-blue-100 rounded-xl p-3">
+              Exemple : votre fiduciaire, votre fournisseur d&apos;énergie principal, votre assurance de base — des fournisseurs dont les variations de prix sont normales ou déjà connues.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={trustedVendorInput}
+                onChange={(e) => setTrustedVendorInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addVendor()}
+                placeholder="Nom du fournisseur…"
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]"
+              />
+              <button
+                onClick={addVendor}
+                className="px-4 py-2.5 bg-[#1e3a5f] text-white rounded-xl text-sm font-semibold hover:bg-[#162c45] transition-colors"
               >
-                <div className="flex items-start gap-4">
-                  {/* Step indicator */}
-                  <div className="flex-shrink-0 mt-0.5">
-                    {isPast ? (
-                      <div className="w-[22px] h-[22px] rounded-full bg-green-500 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">✓</span>
-                      </div>
-                    ) : isActive ? (
-                      <div
-                        className="w-[22px] h-[22px] rounded-full flex items-center justify-center"
-                        style={{
-                          border: "2px solid rgba(99,102,241,0.8)",
-                        }}
-                      >
-                        <span className="text-indigo-400 font-bold text-xs">
-                          {i + 1}
-                        </span>
-                      </div>
-                    ) : (
-                      <div
-                        className="w-[22px] h-[22px] rounded-full"
-                        style={{ border: "2px solid rgba(255,255,255,0.15)" }}
-                      />
-                    )}
-                  </div>
+                Ajouter
+              </button>
+            </div>
+            {trustedVendors.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {trustedVendors.map((v) => (
+                  <span
+                    key={v}
+                    className="flex items-center gap-1.5 bg-[#1e3a5f]/10 text-[#1e3a5f] text-sm px-3 py-1.5 rounded-full font-medium"
+                  >
+                    {v}
+                    <button
+                      onClick={() => removeVendor(v)}
+                      className="text-[#1e3a5f]/50 hover:text-[#1e3a5f] leading-none"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 italic">Aucun fournisseur de confiance ajouté (vous pourrez le faire plus tard dans les paramètres).</p>
+            )}
+          </div>
+        )}
 
-                  {/* Content */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2
-                        className="font-semibold text-sm"
-                        style={{
-                          color: isPast
-                            ? "rgba(134,239,172,1)"
-                            : isActive
-                            ? "rgba(255,255,255,0.9)"
-                            : "rgba(255,255,255,0.35)",
-                        }}
-                      >
-                        {step.title}
-                      </h2>
-                      {isPast && (
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full font-medium"
-                          style={{
-                            background: "rgba(34,197,94,0.15)",
-                            color: "rgba(134,239,172,1)",
-                          }}
-                        >
-                          Fait
-                        </span>
-                      )}
-                    </div>
-                    {!isFuture && (
-                      <p
-                        className="text-xs leading-relaxed"
-                        style={{ color: "rgba(255,255,255,0.4)" }}
-                      >
-                        {step.description}
-                      </p>
-                    )}
-
-                    {step.cta && isActive && (
-                      <Link
-                        href={step.cta.href}
-                        className="inline-flex items-center gap-2 mt-4 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, #ff7c32, #f97316, #ea580c)",
-                          boxShadow:
-                            "0 4px 20px rgba(249,115,22,0.3), inset 0 1px 0 rgba(255,255,255,0.18)",
-                        }}
-                      >
-                        {step.cta.label}
-                        <span>→</span>
-                      </Link>
-                    )}
-                  </div>
+        {/* Step 3 — Budgets */}
+        {step === 3 && (
+          <div className="space-y-3">
+            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between gap-4">
+                <label className="text-sm font-medium text-gray-700 w-48 flex-shrink-0">{label}</label>
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Budget mensuel"
+                    value={budgets[key] ?? ""}
+                    onChange={(e) => setBudgets({ ...budgets, [key]: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]"
+                  />
+                  <span className="text-sm text-gray-400 w-10">CHF</span>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+            <p className="text-xs text-gray-400 mt-2">Tous les champs sont optionnels. Laissez vide si inconnu.</p>
+          </div>
+        )}
 
-        {/* Skip */}
-        <p className="text-center mt-6 text-xs" style={{ color: "rgba(255,255,255,0.2)" }}>
-          <Link
-            href="/dashboard"
-            className="hover:underline transition-colors"
-            style={{ color: "rgba(255,255,255,0.35)" }}
-          >
-            Accéder au tableau de bord sans importer →
-          </Link>
-        </p>
+        {/* Step 4 — Alert thresholds */}
+        {step === 4 && (
+          <div className="space-y-6">
+            <div className="space-y-4">
+              {[
+                {
+                  key: "price_increase_pct" as const,
+                  label: "Seuil hausse soudaine",
+                  sublabel: "Alerte si un fournisseur augmente de plus de X% vs les 3 mois précédents",
+                  suffix: "%",
+                  default: "10",
+                },
+                {
+                  key: "duplicate_days" as const,
+                  label: "Fenêtre doublon",
+                  sublabel: "Considérer comme doublon si même montant + même fournisseur en moins de X jours",
+                  suffix: "jours",
+                  default: "7",
+                },
+                {
+                  key: "progressive_drift_pct" as const,
+                  label: "Seuil dérive progressive",
+                  sublabel: "Alerte si la dérive sur 6 mois dépasse X% chez un même fournisseur",
+                  suffix: "%",
+                  default: "15",
+                },
+              ].map((field) => (
+                <div key={field.key} className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-gray-700">{field.label}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={thresholds[field.key]}
+                        onChange={(e) => setThresholds({ ...thresholds, [field.key]: e.target.value })}
+                        className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]"
+                      />
+                      <span className="text-sm text-gray-500">{field.suffix}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">{field.sublabel}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl p-3">{error}</p>
+        )}
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-100">
+          {step > 1 ? (
+            <button
+              onClick={() => setStep(step - 1)}
+              className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+            >
+              ← Précédent
+            </button>
+          ) : (
+            <div />
+          )}
+
+          {step < 4 ? (
+            <button
+              onClick={() => setStep(step + 1)}
+              disabled={step === 1 && (!industry || !employees)}
+              className="bg-[#1e3a5f] text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-[#162c45] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Suivant →
+            </button>
+          ) : (
+            <button
+              onClick={handleFinish}
+              disabled={saving}
+              className="bg-[#e85d04] text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-[#c94d00] transition-colors disabled:opacity-60"
+            >
+              {saving ? "Sauvegarde…" : "Commencer l'analyse →"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

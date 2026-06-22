@@ -1,4 +1,4 @@
-import type { DbTransaction, LeakCandidate } from "@/lib/analysis-engine";
+import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/analysis-engine";
 
 /**
  * Détecte les abonnements récurrents dont le coût mensuel peut être optimisé.
@@ -10,8 +10,9 @@ import type { DbTransaction, LeakCandidate } from "@/lib/analysis-engine";
  *
  * Roadmap: "Récurrence détectée + aucune activité associée"
  */
-export function detectUnusedSubscriptions(transactions: DbTransaction[]): LeakCandidate[] {
+export function detectUnusedSubscriptions(transactions: DbTransaction[], context?: CompanyContext): LeakCandidate[] {
   const debits = transactions.filter((tx) => tx.amount < 0);
+  const trustedVendors = (context?.trusted_vendors ?? []).map((v) => v.toLowerCase());
 
   // Only look at the last 6 months
   const sixMonthsAgo = new Date();
@@ -35,6 +36,9 @@ export function detectUnusedSubscriptions(transactions: DbTransaction[]): LeakCa
   const results: LeakCandidate[] = [];
 
   for (const [vendor, monthMap] of Object.entries(vendorMonths)) {
+    // Skip trusted vendors
+    if (trustedVendors.includes(vendor.toLowerCase())) continue;
+
     const months = Object.keys(monthMap).sort();
     if (months.length < 2) continue; // not recurring
 
@@ -54,6 +58,9 @@ export function detectUnusedSubscriptions(transactions: DbTransaction[]): LeakCa
       estimated_savings: Math.round(avgMonthly),
       priority,
       vendor,
+      trigger_transaction_ids: recent.filter(tx => (tx.vendor ?? tx.description?.slice(0,40)) === vendor).map(tx => tx.id),
+      detection_logic: `Paiement récurrent identifié sur ${months.length} mois (${months[0]} → ${months[months.length-1]}) — coût moyen : ${avgMonthly.toFixed(0)} CHF/mois — total période : ${totalSpent.toFixed(0)} CHF`,
+      comparison_basis: { vendor, months_detected: months, avg_monthly: Math.round(avgMonthly), total_spent: Math.round(totalSpent) },
     });
   }
 
