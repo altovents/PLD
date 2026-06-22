@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendWelcomeEmail } from "@/lib/email";
-import { isFreeDomain, FREE_DOMAIN_ERROR } from "@/lib/free-email-domains";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +19,6 @@ export default async function RegisterPage({
     const firstName = String(formData.get("first_name"));
     const lastName = String(formData.get("last_name"));
     const company = String(formData.get("company"));
-
-    // Block free/consumer email domains
-    if (isFreeDomain(email)) {
-      redirect(`/register?error=${encodeURIComponent(FREE_DOMAIN_ERROR)}`);
-    }
 
     const supabase = await createClient();
     const { error } = await supabase.auth.signUp({
