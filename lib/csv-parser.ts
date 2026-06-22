@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { isStructuralCost } from "./detectors/structural-costs";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Transaction {
@@ -343,6 +344,7 @@ function nextId(): string {
 function detectDuplicates(byVendor: Map<string, Transaction[]>): DetectedLeak[] {
   const leaks: DetectedLeak[] = [];
   for (const [vendor, txs] of byVendor.entries()) {
+    if (isStructuralCost(vendor, vendor)) continue;
     const sorted = [...txs].sort((a, b) => a.date.getTime() - b.date.getTime());
     const used = new Set<number>();
     for (let i = 0; i < sorted.length - 1; i++) {
@@ -378,6 +380,9 @@ function detectDuplicates(byVendor: Map<string, Transaction[]>): DetectedLeak[] 
 function detectUnusedSubscriptions(byVendor: Map<string, Transaction[]>): DetectedLeak[] {
   const leaks: DetectedLeak[] = [];
   for (const [vendor, txs] of byVendor.entries()) {
+    // Skip structural costs (salaires, loyer, AVS, assurances, impôts, énergie…)
+    if (isStructuralCost(vendor, vendor)) continue;
+
     const debits = txs.filter((t) => t.amount < 0);
     const byMonth = new Map<string, Transaction[]>();
     for (const t of debits) {
@@ -422,6 +427,7 @@ function detectPriceIncreases(
   const leaks: DetectedLeak[] = [];
   for (const [vendor, txs] of byVendor.entries()) {
     if (skipVendors.has(vendor)) continue;
+    if (isStructuralCost(vendor, vendor)) continue;
     const debits = txs.filter((t) => t.amount < 0);
     if (debits.length < 4) continue;
 
@@ -578,6 +584,7 @@ function detectProgressiveDrift(
 
   for (const [vendor, txs] of byVendor.entries()) {
     if (alreadyFlagged.has(vendor)) continue;
+    if (isStructuralCost(vendor, vendor)) continue;
     const debits = txs
       .filter((t) => t.amount < 0)
       .sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -644,6 +651,7 @@ function detectCurrencyFees(transactions: Transaction[]): DetectedLeak[] {
 function detectGhostReactivations(byVendor: Map<string, Transaction[]>): DetectedLeak[] {
   const leaks: DetectedLeak[] = [];
   for (const [vendor, txs] of byVendor.entries()) {
+    if (isStructuralCost(vendor, vendor)) continue;
     const debits = txs
       .filter((t) => t.amount < 0)
       .sort((a, b) => a.date.getTime() - b.date.getTime());
