@@ -11,7 +11,10 @@ import {
   type CategoryKey,
 } from "@/lib/categorizer";
 import { generateStandardCSV, generateBexioCSV } from "@/lib/export-accountant";
+import PaywallOverlay from "@/components/dashboard/PaywallOverlay";
 import Link from "next/link";
+
+const FREE_LIMIT = 5;
 
 type ExportFormat = "standard" | "bexio";
 
@@ -20,7 +23,8 @@ const CATEGORY_OPTIONS = Object.entries(CATEGORIES).map(([key, info]) => ({
   label: `${info.icon} ${info.label}`,
 }));
 
-export default function ComptabiliteClient() {
+export default function ComptabiliteClient({ plan }: { plan: string }) {
+  const isPaid = plan !== "trial";
   const [transactions, setTransactions] = useState<CategorizedTransaction[] | null | "loading">("loading");
   const [learnedMappings, setLearnedMappings] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -231,12 +235,22 @@ export default function ComptabiliteClient() {
             <option value="standard">Excel / CSV standard</option>
             <option value="bexio">Format Bexio</option>
           </select>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 bg-[#e85d04] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#c94d00] transition-colors"
-          >
-            ⬇ Exporter pour le fiduciaire
-          </button>
+          {isPaid ? (
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 bg-[#e85d04] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#c94d00] transition-colors"
+            >
+              ⬇ Exporter pour le fiduciaire
+            </button>
+          ) : (
+            <a
+              href="/#pricing"
+              className="flex items-center gap-2 bg-gray-200 text-gray-500 px-5 py-2.5 rounded-xl text-sm font-semibold cursor-not-allowed"
+              title="Disponible avec un abonnement payant"
+            >
+              🔒 Exporter — Plan payant requis
+            </a>
+          )}
         </div>
       </div>
 
@@ -343,7 +357,7 @@ export default function ComptabiliteClient() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map((tx) => {
+              {(isPaid ? filtered : filtered.slice(0, FREE_LIMIT)).map((tx) => {
                 const needsReview = tx.confidence === "low" || tx.category === "inconnu";
                 const vendorKey = normalizeVendorKey(tx.vendor);
                 const isSaving = savingVendor === vendorKey;
@@ -408,6 +422,13 @@ export default function ComptabiliteClient() {
           <p className="text-center text-gray-400 text-sm py-8">
             Aucune transaction ne correspond aux filtres.
           </p>
+        )}
+        {!isPaid && filtered.length > FREE_LIMIT && (
+          <PaywallOverlay
+            visibleCount={FREE_LIMIT}
+            totalCount={filtered.length}
+            feature="écritures"
+          />
         )}
       </div>
 

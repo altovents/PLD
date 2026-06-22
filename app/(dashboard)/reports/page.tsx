@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCHF } from "@/lib/utils";
 import DownloadButton from "./DownloadButton";
+import Link from "next/link";
+
+const FREE_LEAK_LIMIT = 3;
 
 const TYPE_LABELS: Record<string, string> = {
   duplicate:            "Double paiement",
@@ -18,19 +21,32 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default async function ReportsPage() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: leaks } = await supabase
-    .from("leaks")
-    .select("id, type, title, estimated_savings, priority, vendor")
-    .eq("status", "open")
-    .order("estimated_savings", { ascending: false });
+  const [{ data: leaks }, { data: profile }] = await Promise.all([
+    supabase
+      .from("leaks")
+      .select("id, type, title, estimated_savings, priority, vendor")
+      .eq("status", "open")
+      .order("estimated_savings", { ascending: false }),
+    supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", user!.id)
+      .single(),
+  ]);
 
-  const hasLeaks = leaks && leaks.length > 0;
-  const totalSavings = leaks?.reduce((s, l) => s + (l.estimated_savings ?? 0), 0) ?? 0;
+  const isPaid = profile?.plan && profile.plan !== "trial";
 
-  // Count by type
+  const allLeaks = leaks ?? [];
+  const hasLeaks = allLeaks.length > 0;
+  const totalSavings = allLeaks.reduce((s, l) => s + (l.estimated_savings ?? 0), 0);
+  const visibleLeaks = isPaid ? allLeaks : allLeaks.slice(0, FREE_LEAK_LIMIT);
+  const hiddenCount = allLeaks.length - visibleLeaks.length;
+
+  // Count by type (visible only for trial)
   const byType: Record<string, number> = {};
-  for (const leak of leaks ?? []) {
+  for (const leak of visibleLeaks) {
     byType[leak.type] = (byType[leak.type] ?? 0) + 1;
   }
 
@@ -41,7 +57,16 @@ export default async function ReportsPage() {
           <h1 className="text-2xl font-bold text-[#1e3a5f]">Rapports PDF</h1>
           <p className="text-gray-500 text-sm mt-1">Exportez votre analyse financière</p>
         </div>
-        {hasLeaks && <DownloadButton />}
+        {hasLeaks && isPaid && <DownloadButton />}
+        {hasLeaks && !isPaid && (
+          <Link
+            href="/#pricing"
+            className="flex items-center gap-2 bg-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm font-semibold"
+            title="Disponible avec un abonnement payant"
+          >
+            🔒 Télécharger PDF — Plan payant
+          </Link>
+        )}
       </div>
 
       {!hasLeaks ? (
@@ -64,7 +89,9 @@ export default async function ReportsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-gray-100 p-5">
               <p className="text-sm text-gray-500 mb-1">Anomalies incluses</p>
-              <p className="text-2xl font-bold text-[#1e3a5f]">{leaks.length}</p>
+              <p className="text-2xl font-bold text-[#1e3a5f]">
+                {isPaid ? allLeaks.length : `${visibleLeaks.length} / ${allLeaks.length}`}
+              </p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 p-5">
               <p className="text-sm text-gray-500 mb-1">Économies potentielles</p>
@@ -92,6 +119,21 @@ export default async function ReportsPage() {
                   </span>
                 </div>
               ))}
+              {!isPaid && hiddenCount > 0 && (
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between py-3 px-4 bg-orange-50 rounded-xl border border-orange-100">
+                    <span className="text-sm text-orange-700 font-medium">
+                      🔒 {hiddenCount} anomalie{hiddenCount > 1 ? "s" : ""} masquée{hiddenCount > 1 ? "s" : ""}
+                    </span>
+                    <Link
+                      href="/#pricing"
+                      className="text-xs bg-[#e85d04] text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-[#c94d00] transition-colors"
+                    >
+                      Débloquer →
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
