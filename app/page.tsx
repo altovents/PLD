@@ -394,7 +394,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-5 flex-shrink-0">
               <span className="text-2xl font-bold text-white">990 CHF</span>
               <Link
-                href="/import"
+                href="/checkout/audit"
                 className="text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:opacity-90"
                 style={{ background: "linear-gradient(135deg, #ff7c32, #f97316)", boxShadow: "0 4px 16px rgba(249,115,22,0.25)" }}
               >

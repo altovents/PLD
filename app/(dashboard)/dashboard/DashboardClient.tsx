@@ -69,7 +69,7 @@ function TrialLockWall({
   );
 }
 
-export default function DashboardClient({ dbLeaks, plan, paymentSuccess }: { dbLeaks: DbLeak[]; plan: string; paymentSuccess?: boolean }) {
+export default function DashboardClient({ dbLeaks, plan, paymentSuccess, auditSuccess }: { dbLeaks: DbLeak[]; plan: string; paymentSuccess?: boolean; auditSuccess?: boolean }) {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null | "loading">("loading");
 
   useEffect(() => {
@@ -112,6 +112,15 @@ export default function DashboardClient({ dbLeaks, plan, paymentSuccess }: { dbL
             <div>
               <p className="font-semibold text-green-800">Abonnement activé avec succès !</p>
               <p className="text-sm text-green-600">Toutes les fonctionnalités sont maintenant débloquées.</p>
+            </div>
+          </div>
+        )}
+        {auditSuccess && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <span className="text-2xl">✅</span>
+            <div>
+              <p className="font-semibold text-green-800">Audit ponctuel confirmé !</p>
+              <p className="text-sm text-green-600">Vous allez recevoir un email avec les prochaines étapes. Importez vos relevés CSV pour démarrer.</p>
             </div>
           </div>
         )}

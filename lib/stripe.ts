@@ -25,3 +25,5 @@ export const PLANS = {
     features: ["Imports CSV illimités", "Multi-entités + benchmarks", "Dashboard personnalisable", "Rapports sur-mesure", "Utilisateurs illimités", "Account manager + SLA"],
   },
 } as const;
+
+export const AUDIT_PRICE_ID = process.env.STRIPE_PRICE_AUDIT!
