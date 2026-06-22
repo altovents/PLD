@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -22,9 +22,13 @@ export async function POST() {
     return NextResponse.json({ error: "No Stripe customer found" }, { status: 404 });
   }
 
+  const host = request.headers.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? `${proto}://${host}`).replace(/\/$/, "");
+
   const session = await stripe.billingPortal.sessions.create({
     customer: profile.stripe_customer_id,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
+    return_url: `${baseUrl}/settings`,
   });
 
   return NextResponse.json({ url: session.url });

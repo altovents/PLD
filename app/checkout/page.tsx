@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { stripe, PLANS } from "@/lib/stripe";
 
@@ -52,6 +53,12 @@ export default async function CheckoutPage({
     );
   }
 
+  // Resolve base URL: env var first, then request host header
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? `${proto}://${host}`).replace(/\/$/, "");
+
   let sessionUrl: string;
   try {
     const session = await stripe.checkout.sessions.create({
@@ -59,8 +66,8 @@ export default async function CheckoutPage({
       payment_method_types: ["card"],
       customer_email: user.email ?? undefined,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?canceled=true`,
+      success_url: `${baseUrl}/dashboard?success=true`,
+      cancel_url: `${baseUrl}/settings?canceled=true`,
       metadata: { user_id: user.id, plan: planKey },
     });
     sessionUrl = session.url!;

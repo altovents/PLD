@@ -18,15 +18,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
 
+  const host = request.headers.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? `${proto}://${host}`).replace(/\/$/, "");
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     payment_method_types: ["card"],
     customer_email: user.email,
     line_items: [{ price: planConfig.priceId, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?canceled=true`,
+    success_url: `${baseUrl}/dashboard?success=true`,
+    cancel_url: `${baseUrl}/settings?canceled=true`,
     metadata: { user_id: user.id, plan },
-    currency: "chf",
   });
 
   return NextResponse.json({ url: session.url });
