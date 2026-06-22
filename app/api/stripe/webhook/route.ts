@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as Stripe.CheckoutSession;
+      const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.user_id;
       const plan = session.metadata?.plan as "starter" | "growth" | "pro" | undefined;
 
