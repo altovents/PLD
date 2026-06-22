@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
+import { runAnalysis } from "@/lib/analysis-engine";
 
 export const dynamic = "force-dynamic";
 
@@ -20,15 +21,6 @@ interface IncomingTransaction {
   currency: string;
 }
 
-interface IncomingLeak {
-  type: string;
-  title: string;
-  description: string;
-  amount: number;
-  priority: string;
-  vendor: string;
-}
-
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -37,9 +29,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { transactions, leaks, filename, format } = await request.json() as {
+  const { transactions, filename, format } = await request.json() as {
     transactions: IncomingTransaction[];
-    leaks: IncomingLeak[];
+    leaks: unknown; // ignored — analysis runs server-side
     filename: string;
     format: string;
   };
@@ -111,40 +103,21 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── 3. Replace open leaks ────────────────────────────────────────────────────
-  await db.from("leaks").delete().eq("user_id", user.id).eq("status", "open");
-
-  if (leaks.length > 0) {
-    const leakRows = leaks.map((l) => ({
-      user_id: user.id,
-      type: l.type,
-      title: l.title,
-      description: l.description,
-      estimated_savings: l.amount,
-      priority: l.priority,
-      vendor: l.vendor,
-      status: "open" as const,
-    }));
-
-    const { error } = await db.from("leaks").insert(leakRows);
-    if (error) {
-      console.error("Failed to insert leaks:", error);
-      return NextResponse.json({ error: "Failed to save leaks" }, { status: 500 });
-    }
-  }
+  // ── 3. Run analysis with the server-side engine (respects structural costs filter) ──
+  const analysis = await runAnalysis(user.id);
 
   // ── 4. Record the import ─────────────────────────────────────────────────────
   await db.from("imports").insert({
     user_id: user.id,
     filename,
     transaction_count: transactions.length,
-    leaks_count: leaks.length,
+    leaks_count: analysis.leaks_count,
     format,
   });
 
   return NextResponse.json({
     ok: true,
-    leaks_count: leaks.length,
+    leaks_count: analysis.leaks_count,
     transactions_count: transactions.length,
   });
 }
