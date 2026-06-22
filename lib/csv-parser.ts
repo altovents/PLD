@@ -721,17 +721,22 @@ export function detectLeaks(transactions: Transaction[]): DetectedLeak[] {
 
   // Run all detectors
   const duplicates       = detectDuplicates(byVendor);
-  const subscriptions    = detectUnusedSubscriptions(byVendor);
   const overlapping      = detectOverlappingServices(byVendor);
   const ghostReactivated = detectGhostReactivations(byVendor);
   const lateFees         = detectLateFees(transactions);
   const currencyFees     = detectCurrencyFees(transactions);
   const bankFees         = detectBankFees(byVendor);
 
+  // Ghost reactivation takes priority over subscription — remove duplicate vendor alerts
+  const ghostVendors = new Set(ghostReactivated.map((l) => l.vendor));
+  const subscriptions = detectUnusedSubscriptions(byVendor)
+    .filter((l) => !ghostVendors.has(l.vendor));
+
   // Vendors already flagged as subscription/duplicate — skip for price/drift detectors
   const flaggedVendors = new Set([
     ...subscriptions.map((l) => l.vendor),
     ...duplicates.map((l) => l.vendor),
+    ...ghostReactivated.map((l) => l.vendor),
   ]);
 
   const priceIncreases   = detectPriceIncreases(byVendor, flaggedVendors);
