@@ -1,4 +1,5 @@
 import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/types";
+import { isStructuralCost } from "./structural-costs";
 
 /**
  * Détecte les abonnements récurrents dont le coût mensuel peut être optimisé.
@@ -36,6 +37,9 @@ export function detectUnusedSubscriptions(transactions: DbTransaction[], context
   const results: LeakCandidate[] = [];
 
   for (const [vendor, monthMap] of Object.entries(vendorMonths)) {
+    // Skip structural costs (loyer, salaires, assurances, énergie, impôts…)
+    if (isStructuralCost(vendor, vendor)) continue;
+
     // Skip trusted vendors
     if (trustedVendors.includes(vendor.toLowerCase())) continue;
 
@@ -51,10 +55,22 @@ export function detectUnusedSubscriptions(transactions: DbTransaction[], context
     const priority =
       avgMonthly > 100 ? "high" : avgMonthly > 30 ? "medium" : "low";
 
+    // Only flag vendors that look like software/services, not infrastructure
+    const looksLikeSaaS = /\b(microsoft|adobe|slack|zoom|dropbox|salesforce|hubspot|google|aws|github|notion|figma|canva|shopify|stripe|netlify|vercel|openai|anthropic|datadog|mailchimp|sendgrid|spotify|netflix|linkedin|atlassian|jira)\b/i.test(vendor);
+    const looksLikeTelecom = /swisscom|sunrise|salt\s+mobile|quickline|upc|init7/i.test(vendor);
+
+    // For telecom: only flag if there's a cheaper alternative worth investigating
+    // For unknown vendors: flag as "à vérifier"
+    const actionVerb = looksLikeSaaS
+      ? "Vérifier si cet outil est encore utilisé par l'équipe."
+      : looksLikeTelecom
+        ? "Comparer avec les offres concurrentes (Sunrise, Salt, Init7)."
+        : "Vérifier si ce service est toujours nécessaire.";
+
     results.push({
       type: "unused_subscription",
       title: `Abonnement récurrent — ${vendor}`,
-      description: `Paiement détecté sur ${months.length} mois. Coût moyen : ${avgMonthly.toFixed(0)} CHF/mois. À vérifier si l'outil est encore utilisé.`,
+      description: `Paiement de ${avgMonthly.toFixed(0)} CHF/mois détecté sur ${months.length} mois. ${actionVerb}`,
       estimated_savings: Math.round(avgMonthly),
       priority,
       vendor,

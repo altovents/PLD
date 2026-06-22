@@ -1,4 +1,5 @@
 import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/types";
+import { isStructuralCost } from "./structural-costs";
 
 /**
  * Détecte les hausses progressives sur 6 mois chez un même fournisseur.
@@ -51,6 +52,9 @@ export function detectProgressiveIncreases(
   for (const [vendor, monthMap] of Object.entries(vendorMonths)) {
     // Skip vendors already flagged by price_increase (avoid double-counting)
     if (vendorsAlreadyFlagged.has(vendor)) continue;
+
+    // Skip structural costs (salaires, cotisations, loyer, assurances, impôts…)
+    if (isStructuralCost(vendor, vendor)) continue;
 
     // Skip trusted vendors
     if (trustedVendors.includes(vendor.toLowerCase())) continue;

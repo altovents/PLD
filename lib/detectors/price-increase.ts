@@ -1,4 +1,5 @@
 import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/types";
+import { isStructuralCost } from "./structural-costs";
 
 /**
  * Détecte les hausses soudaines chez un fournisseur :
@@ -37,6 +38,9 @@ export function detectPriceIncreases(transactions: DbTransaction[], context?: Co
   const threshold = (context?.alert_thresholds?.price_increase_pct ?? 10) / 100;
 
   for (const [vendor, monthMap] of Object.entries(vendorMonths)) {
+    // Skip structural costs (salaires, cotisations, loyer, assurances, impôts…)
+    if (isStructuralCost(vendor, vendor)) continue;
+
     // Skip trusted vendors
     if (trustedVendors.includes(vendor.toLowerCase())) continue;
 

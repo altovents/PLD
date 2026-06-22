@@ -1,4 +1,5 @@
 import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/types";
+import { isStructuralCost } from "./structural-costs";
 
 /**
  * Détecte les doublons : même montant + même fournisseur/description
@@ -16,6 +17,9 @@ export function detectDuplicates(transactions: DbTransaction[], context?: Compan
   for (let i = 0; i < debits.length; i++) {
     const a = debits[i];
     const keyA = `${a.vendor ?? a.description?.slice(0, 30)}`;
+
+    // Skip structural costs — un loyer ou salaire mensuel identique n'est pas un doublon
+    if (isStructuralCost(a.vendor ?? "", a.description ?? "")) continue;
 
     // Skip trusted vendors
     if (keyA && trustedVendors.includes(keyA.toLowerCase())) continue;
