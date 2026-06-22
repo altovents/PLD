@@ -9,6 +9,7 @@ export const PLAN_LIMITS: Record<
   growth:  { imports: 5,        period: "monthly" },
   pro:     { imports: Infinity, period: "monthly" },
   audit:   { imports: 15,       period: "total"   },
+  admin:   { imports: Infinity, period: "monthly" },
 };
 
 export const PLAN_LIMIT_LABELS: Record<string, string> = {
@@ -17,6 +18,7 @@ export const PLAN_LIMIT_LABELS: Record<string, string> = {
   growth:  "5 imports / mois",
   pro:     "Imports illimités",
   audit:   "15 imports au total",
+  admin:   "Imports illimités",
 };
 
 export const PERIOD_LABELS: Record<PlanPeriod, string> = {
