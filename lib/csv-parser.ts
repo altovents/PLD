@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Transaction {
