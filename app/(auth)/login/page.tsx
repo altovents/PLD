@@ -2,12 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: { error?: string };
 }) {
-  const params = await searchParams;
+  const params = searchParams;
 
   async function loginAction(formData: FormData) {
     "use server";

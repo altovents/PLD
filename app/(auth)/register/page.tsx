@@ -4,12 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { sendWelcomeEmail } from "@/lib/email";
 import { isFreeDomain, FREE_DOMAIN_ERROR } from "@/lib/free-email-domains";
 
+export const dynamic = "force-dynamic";
+
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; plan?: string }>;
+  searchParams: { error?: string; plan?: string };
 }) {
-  const params = await searchParams;
+  const params = searchParams;
 
   async function registerAction(formData: FormData) {
     "use server";
