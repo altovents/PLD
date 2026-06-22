@@ -42,6 +42,10 @@ const STRUCTURAL_PATTERNS: RegExp[] = [
   // ── Télécom principal (contrat en cours — pas un abonnement à annuler) ──
   /swisscom|sunrise\s+business|salt\s+mobile/i,
 
+  // ── Transports publics (abonnements récurrents professionnels) ──────────
+  /\btpg\b|transports?\s+publics|bernmobil|\bzvv\b|sbb.*abo|cff.*abo|ffs.*abo/i,
+  /abonnement\s+(demi.tarif|général|ag\b)|half.fare|generalabo/i,
+
   // ── Virements internes ──────────────────────────────────────────────────
   /virement\s+interne|transfert\s+propre|ordre\s+de\s+virement/i,
 ]
