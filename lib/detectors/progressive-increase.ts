@@ -1,4 +1,4 @@
-import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/analysis-engine";
+import type { DbTransaction, LeakCandidate, CompanyContext } from "@/lib/types";
 
 /**
  * Détecte les hausses progressives sur 6 mois chez un même fournisseur.
