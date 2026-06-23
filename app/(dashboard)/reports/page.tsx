@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCHF } from "@/lib/utils";
 import DownloadButton from "./DownloadButton";
+import ExportCSVButton from "./ExportCSVButton";
 import Link from "next/link";
 
 const FREE_LEAK_LIMIT = 3;
@@ -26,7 +27,7 @@ export default async function ReportsPage() {
   const [{ data: leaks }, { data: profile }] = await Promise.all([
     supabase
       .from("leaks")
-      .select("id, type, title, estimated_savings, priority, vendor")
+      .select("id, type, title, description, estimated_savings, priority, vendor")
       .eq("status", "open")
       .order("estimated_savings", { ascending: false }),
     supabase
@@ -57,7 +58,12 @@ export default async function ReportsPage() {
           <h1 className="text-2xl font-bold text-[#1e3a5f]">Rapports PDF</h1>
           <p className="text-gray-500 text-sm mt-1">Exportez votre analyse financière</p>
         </div>
-        {hasLeaks && isPaid && <DownloadButton />}
+        {hasLeaks && isPaid && (
+          <div className="flex items-center gap-2">
+            <ExportCSVButton leaks={visibleLeaks} />
+            <DownloadButton />
+          </div>
+        )}
         {hasLeaks && !isPaid && (
           <Link
             href="/checkout?plan=growth"
